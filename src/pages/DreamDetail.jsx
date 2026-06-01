@@ -26,21 +26,24 @@ const DreamDetail = () => {
   const handleGenerateImage = async () => {
     setIsGenerating(true);
     try {
-      const response = await fetch('/api/generate-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: dream.text })
-      });
+      const prompt = dream.imagePrompt || dream.text;
+      const seed = Math.floor(Math.random() * 1000000);
+      const encodedPrompt = encodeURIComponent(prompt);
+      const finalUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${seed}`;
       
-      if (!response.ok) throw new Error('API Hatası');
-      
-      const data = await response.json();
-      setImageForDream(dream.id, data.image_url);
+      // Resmin yüklenmesini bekleyelim
+      const img = new Image();
+      img.onload = () => {
+        setImageForDream(dream.id, finalUrl);
+        setIsGenerating(false);
+      };
+      img.onerror = () => {
+        throw new Error('Resim yüklenemedi');
+      };
+      img.src = finalUrl;
     } catch (error) {
       console.error('Görsel oluşturulamadı:', error);
-      // Hata durumunda Fallback görsel atıyoruz
       setImageForDream(dream.id, "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1200&auto=format&fit=crop");
-    } finally {
       setIsGenerating(false);
     }
   };

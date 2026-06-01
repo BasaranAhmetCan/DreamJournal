@@ -137,7 +137,9 @@ const Home = () => {
           astrological: data.astrological_meaning
         },
         sentiment: data.sentiment,
-        imageUrl: data.image_url
+        moodScore: data.mood_score,
+        imagePrompt: data.image_prompt,
+        imageUrl: null
       });
       
       navigate(`/dream/${newDreamId}`);

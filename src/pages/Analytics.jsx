@@ -30,9 +30,13 @@ const Analytics = () => {
       // Sadece Günü ve Ayı al (örn: "10 Mayıs")
       const shortDate = d.date.split(' ').slice(0, 2).join(' ');
       
-      let score = 3; // neutral
-      if (d.sentiment === 'positive') score = 5;
-      if (d.sentiment === 'negative') score = 1;
+      let score = 3;
+      if (d.moodScore !== undefined) {
+        score = d.moodScore;
+      } else {
+        if (d.sentiment?.toLowerCase() === 'positive' || d.sentiment?.toLowerCase() === 'pozitif') score = 5;
+        if (d.sentiment?.toLowerCase() === 'negative' || d.sentiment?.toLowerCase() === 'negatif') score = 1;
+      }
 
       if (!dateMap[shortDate]) {
         dateMap[shortDate] = { count: 0, totalScore: 0 };

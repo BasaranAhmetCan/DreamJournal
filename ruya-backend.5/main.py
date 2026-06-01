@@ -35,13 +35,14 @@ class ImageResponse(BaseModel):
 
 class DreamResponse(BaseModel):
     sentiment: str
+    mood_score: int
     classic_meaning: str
     freud_meaning: str
     jung_meaning: str
     islamic_meaning: str
     astrological_meaning: str
     keywords: List[str]
-    image_url: str
+    image_prompt: str
 
 class DreamAI:
     
@@ -121,14 +122,15 @@ SADECE TEK BİR KELİME YAZ. Başka hiçbir şey ekleme.""",
 Aşağıdaki rüyayı incele ve ÇIKTIYI SADECE GEÇERLİ BİR JSON OLARAK DÖN.
 JSON formatı birebir şu şekilde olmalı:
 {
-  "sentiment": "SADECE tek kelime (Pozitif, Negatif veya Nötr)",
+  "sentiment": "Rüyanın genel duygusu (Pozitif, Negatif veya Nötr)",
+  "mood_score": "Rüyanın ruh hali enerjisini 1 ile 5 arasında puanla (1: Çok Negatif, 3: Nötr, 5: Çok Pozitif). SADECE RAKAM (Örn: 4)",
   "classic_meaning": "Geleneksel rüya sembollerine göre yorum",
   "freud_meaning": "Freudyen psikanaliz teorilerine göre yorum",
   "jung_meaning": "Jungiyen arketiplere göre analiz",
   "islamic_meaning": "İslami rüya tabiri",
   "astrological_meaning": "Kullanıcının burcuna göre astrolojik yorum",
   "image_prompt": "Rüyayı sürrealist, detaylı, yüksek kaliteli bir tablo olarak çizdirmek için İNGİLİZCE resim oluşturma promptu. (Sadece prompt metni)",
-  "keywords": ["İNGİLİZCE EN ÖNEMLİ TEK NESNE KELİMESİ"]
+  "keywords": ["Rüyadaki en önemli 3 tema veya sembol (TÜRKÇE KELİMELER)"]
 }
 Asla markdown kullanma, sadece saf JSON metni dön."""
         prompt = f"Rüya: {dream_text}\nKullanıcının Burcu: {zodiac}"
@@ -148,13 +150,14 @@ Asla markdown kullanma, sadece saf JSON metni dön."""
             print(f"JSON Çözümleme Hatası veya API Limiti: {e}")
             return {
                 "sentiment": "Nötr",
+                "mood_score": 3,
                 "classic_meaning": "Analiz motoru şu an meşgul veya API limiti aşıldı, lütfen daha sonra tekrar deneyin.",
                 "freud_meaning": "Analiz motoru şu an meşgul, lütfen daha sonra tekrar deneyin.",
                 "jung_meaning": "Analiz motoru şu an meşgul, lütfen daha sonra tekrar deneyin.",
                 "islamic_meaning": "Analiz motoru şu an meşgul, lütfen daha sonra tekrar deneyin.",
                 "astrological_meaning": "Analiz motoru şu an meşgul, lütfen daha sonra tekrar deneyin.",
                 "image_prompt": f"A surreal painting of this dream: {dream_text}",
-                "keywords": ["dream"]
+                "keywords": ["Rüya"]
             }
 
 @app.post("/api/generate-image", response_model=ImageResponse)
@@ -187,13 +190,14 @@ async def analyze_dream_endpoint(request: DreamRequest):
 
         return DreamResponse(
             sentiment=data.get("sentiment", "Nötr"),
+            mood_score=int(data.get("mood_score", 3)),
             classic_meaning=data.get("classic_meaning", ""),
             freud_meaning=data.get("freud_meaning", ""),
             jung_meaning=data.get("jung_meaning", ""),
             islamic_meaning=data.get("islamic_meaning", ""),
             astrological_meaning=data.get("astrological_meaning", ""),
-            keywords=data.get("keywords", ["dream"]),
-            image_url=img_url
+            keywords=data.get("keywords", []),
+            image_prompt=data.get("image_prompt", f"A surreal painting of this dream: {cleaned_text}")
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Sistem analiz motoru hatası: {str(e)}")
