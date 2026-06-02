@@ -101,19 +101,22 @@ SADECE TEK BİR KELİME YAZ. Başka hiçbir şey ekleme.""",
         return DreamAI.call_gemini(prompt=prompt_text, system_instruction=prompt_instruction)
 
     @staticmethod
-    def generate_dream_image(dream_text: str) -> str:
-        """Gemini ile prompt'u iyileştirip OpenAI DALL-E üzerinden görsel oluşturur."""
-        optimized_prompt = DreamAI.optimize_image_prompt(dream_text)
+    def generate_dream_image(image_prompt_text: str) -> str:
+        """Önceden oluşturulmuş image_prompt'u kullanarak OpenAI DALL-E veya Pollinations üzerinden görsel oluşturur."""
+        import os
+        import urllib.parse
+        import random
+
+        # Ahmet'in dediği gibi, Gemini'ye tekrar istek atmamak için optimize işlemini iptal ettik.
+        # Frontend zaten bize analyze_dream_all_in_one'dan gelen hazır "image_prompt"u yolluyor.
+        optimized_prompt = image_prompt_text
         
-        # Eğer API hatası gelirse veya geçersiz bir yanıt dönerse varsayılan bir prompt kullan
-        if not optimized_prompt or "Analiz motoru" in optimized_prompt:
-            optimized_prompt = f"A surreal, highly detailed and high quality painting of this dream: {dream_text}"
+        # Eğer prompt çok kısaysa veya hatalıysa basit bir prompta çevir
+        if not optimized_prompt or len(optimized_prompt) < 10:
+            optimized_prompt = f"A surreal, highly detailed and high quality painting of this dream: {image_prompt_text}"
 
         try:
             from openai import OpenAI
-            import os
-            import urllib.parse
-            import random
             client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
             response = client.images.generate(
                 model="dall-e-3",

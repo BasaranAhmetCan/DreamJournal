@@ -218,7 +218,7 @@ const Home = () => {
     try {
       let token = "";
       if (firebaseUser) {
-        token = await firebaseUser.getIdToken();
+        token = await firebaseUser.getIdToken(true); // Token'i zorla yenile (expire sorununu önler)
       }
 
       const response = await fetch('/api/analyze-dream', {
@@ -239,7 +239,7 @@ const Home = () => {
       
       const data = await response.json();
       
-      const newDreamId = addDream({
+      const newDreamId = await addDream({
         text: dreamText,
         // Eğer kullanıcı etiket seçtiyse onları ekle, yoksa yapay zekanın bulduğu anahtar kelimeleri ekle
         keywords: selectedTags.length > 0 ? selectedTags : data.keywords,

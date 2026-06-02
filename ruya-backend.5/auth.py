@@ -5,7 +5,8 @@ from fastapi import Security, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 # firebase_admin uygulamasını başlat
-cred_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
+current_dir = os.getcwd()
+cred_path = os.path.join(current_dir, "serviceAccountKey.json")
 
 # Sadece ilk çağrıda başlatılması için kontrol et
 if not firebase_admin._apps:
@@ -27,6 +28,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
         decoded_token = auth.verify_id_token(token)
         return decoded_token
     except Exception as e:
+        print(f"AUTH ERROR: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Geçersiz token veya yetkilendirme hatası: {str(e)}",
