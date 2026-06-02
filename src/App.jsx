@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Capacitor } from '@capacitor/core';
@@ -39,14 +39,13 @@ const AlarmScheduler = () => {
   const { alarms } = useDreamContext();
   const navigate = useNavigate();
   const location = useLocation();
+  const firedAlarmsRef = useRef(new Set());
 
   useEffect(() => {
     // Native platformda bu scheduler çalışmasın — native notifications halleder
     if (isNativePlatform()) return;
     // Zaten alarm çalma ekranındaysa kontrol etme
     if (location.pathname === '/alarm-ringing') return;
-
-    const firedAlarms = new Set();
 
     const checkAlarms = () => {
       const now = new Date();
@@ -55,11 +54,11 @@ const AlarmScheduler = () => {
       const matchingAlarm = alarms.find(a => 
         a.active && 
         a.time === currentTime && 
-        !firedAlarms.has(`${a.id}-${currentTime}`)
+        !firedAlarmsRef.current.has(`${a.id}-${currentTime}`)
       );
       
       if (matchingAlarm) {
-        firedAlarms.add(`${matchingAlarm.id}-${currentTime}`);
+        firedAlarmsRef.current.add(`${matchingAlarm.id}-${currentTime}`);
         navigate('/alarm-ringing', { state: { sound: matchingAlarm.sound || 'gentle' } });
       }
     };
