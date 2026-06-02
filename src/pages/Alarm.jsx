@@ -4,6 +4,7 @@ import { useDreamContext } from '../context/DreamContext';
 import { Bell, BellOff, Plus, Trash2, Play, Volume2, ChevronDown, ChevronUp, Music } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ALARM_SOUNDS, previewAlarmSound, stopAlarmSound } from '../utils/alarmSounds';
+import { formatAlarmTime } from '../utils/timeFormat';
 
 const SoundSelector = ({ selectedSound, onSelect, compact = false }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -131,13 +132,50 @@ const SoundSelector = ({ selectedSound, onSelect, compact = false }) => {
 };
 
 const Alarm = () => {
-  const { alarms, addAlarm, toggleAlarm, removeAlarm, updateAlarmSound } = useDreamContext();
+  const { alarms, addAlarm, toggleAlarm, removeAlarm, updateAlarmSound, theme, timeFormat } = useDreamContext();
   const [newTime, setNewTime] = useState('07:00');
   const [selectedSound, setSelectedSound] = useState('gentle');
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
   const navigate = useNavigate();
+
+  const getPickerValues = (timeStr, format) => {
+    if (!timeStr) return { hour: 7, minute: 0, ampm: 'AM' };
+    const [hStr, mStr] = timeStr.split(':');
+    const h24 = parseInt(hStr, 10);
+    const minute = parseInt(mStr, 10);
+    
+    if (format === '24h') {
+      return { hour: h24, minute, ampm: 'AM' };
+    } else {
+      const ampm = h24 >= 12 ? 'PM' : 'AM';
+      const hour12 = h24 % 12 === 0 ? 12 : h24 % 12;
+      return { hour: hour12, minute, ampm };
+    }
+  };
+
+  const savePickerTime = (h, m, ampm, format) => {
+    let h24 = parseInt(h, 10);
+    const minuteStr = String(m).padStart(2, '0');
+    
+    if (format === '24h') {
+      const hourStr = String(h24).padStart(2, '0');
+      setNewTime(`${hourStr}:${minuteStr}`);
+    } else {
+      if (ampm === 'AM') {
+        if (h24 === 12) h24 = 0;
+      } else {
+        if (h24 !== 12) h24 = h24 + 12;
+      }
+      const hourStr = String(h24).padStart(2, '0');
+      setNewTime(`${hourStr}:${minuteStr}`);
+    }
+  };
+
+  const pickerValues = getPickerValues(newTime, timeFormat);
 
   const handleAddAlarm = () => {
     addAlarm(newTime, selectedSound);
+    setIsTimePickerOpen(false);
   };
 
   const triggerMockAlarm = () => {
@@ -163,22 +201,79 @@ const Alarm = () => {
           {/* Decorative glow */}
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-dream-accent/10 rounded-full blur-3xl pointer-events-none" />
           
-          <div className="relative z-10 flex items-center gap-4 w-full">
-            <input 
-              type="time" 
-              value={newTime}
-              onChange={(e) => setNewTime(e.target.value)}
-              className="flex-1 bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-2xl font-light text-center outline-none text-white/90 focus:border-dream-accent transition-colors"
-              style={{ colorScheme: 'dark' }}
-            />
+          <div className="relative z-10 flex items-center justify-between gap-4 w-full">
+            <button 
+              type="button"
+              onClick={() => setIsTimePickerOpen(!isTimePickerOpen)}
+              className="flex-1 bg-dream-accent/15 border border-dream-accent/30 text-dream-accent rounded-xl py-3 text-lg font-semibold hover:bg-dream-accent/25 transition-all duration-300 shadow-sm"
+            >
+              {formatAlarmTime(newTime, timeFormat)}
+            </button>
             
             <button 
               onClick={handleAddAlarm}
-              className="w-14 h-14 rounded-xl bg-gradient-to-r from-[#7C3AED] to-[#8B5CF6] text-white shadow-[0_0_20px_rgba(139,92,246,0.3)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
+              className="w-14 h-14 rounded-xl bg-gradient-to-r from-[#7C3AED] to-[#8B5CF6] text-pure-white shadow-[0_0_20px_rgba(139,92,246,0.3)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
             >
               <Plus size={24} />
             </button>
           </div>
+
+          {isTimePickerOpen && (
+            <motion.div 
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative z-10 flex gap-2 bg-dream-light/30 dark:bg-black/20 border border-dream-light/50 dark:border-white/5 p-3 rounded-2xl justify-center items-center"
+            >
+              {/* Hour Select */}
+              <select 
+                value={pickerValues.hour} 
+                onChange={(e) => savePickerTime(e.target.value, pickerValues.minute, pickerValues.ampm, timeFormat)}
+                className="bg-dream-dark/50 dark:bg-dream-mid border border-dream-light dark:border-white/10 rounded-xl px-3 py-1.5 text-sm outline-none text-white/90 focus:border-dream-accent cursor-pointer"
+                style={{ colorScheme: theme }}
+              >
+                {(timeFormat === '24h' ? [...Array(24).keys()] : [...Array(12).keys()].map(i => i + 1)).map(h => (
+                  <option 
+                    key={h} 
+                    value={h}
+                    style={{ backgroundColor: theme === 'light' ? '#E4D9EE' : '#0E0D1F', color: theme === 'light' ? '#160826' : '#ffffff' }}
+                  >
+                    {String(h).padStart(2, '0')}
+                  </option>
+                ))}
+              </select>
+              
+              <span className="text-white/50 font-medium">:</span>
+              
+              {/* Minute Select */}
+              <select 
+                value={pickerValues.minute} 
+                onChange={(e) => savePickerTime(pickerValues.hour, e.target.value, pickerValues.ampm, timeFormat)}
+                className="bg-dream-dark/50 dark:bg-dream-mid border border-dream-light dark:border-white/10 rounded-xl px-3 py-1.5 text-sm outline-none text-white/90 focus:border-dream-accent cursor-pointer"
+                style={{ colorScheme: theme }}
+              >
+                {[...Array(60).keys()].map(m => (
+                  <option 
+                    key={m} 
+                    value={m}
+                    style={{ backgroundColor: theme === 'light' ? '#E4D9EE' : '#0E0D1F', color: theme === 'light' ? '#160826' : '#ffffff' }}
+                  >
+                    {String(m).padStart(2, '0')}
+                  </option>
+                ))}
+              </select>
+
+              {/* AM/PM Switcher */}
+              {timeFormat === '12h' && (
+                <button
+                  type="button"
+                  onClick={() => savePickerTime(pickerValues.hour, pickerValues.minute, pickerValues.ampm === 'AM' ? 'PM' : 'AM', timeFormat)}
+                  className="px-3 py-1.5 rounded-xl bg-dream-accent/25 border border-dream-accent/35 text-dream-accent text-xs font-semibold uppercase tracking-wider transition-colors hover:bg-dream-accent/35"
+                >
+                  {pickerValues.ampm}
+                </button>
+              )}
+            </motion.div>
+          )}
           
           {/* Ses Seçici */}
           <div className="relative z-10">
@@ -210,13 +305,13 @@ const Alarm = () => {
                 <div className="flex items-center gap-4">
                   <button 
                     onClick={() => toggleAlarm(alarm.id)}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${alarm.active ? 'bg-dream-accent text-white' : 'bg-white/10 text-white/50'}`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${alarm.active ? 'bg-dream-accent text-pure-white' : 'bg-white/10 text-white/50'}`}
                   >
                     {alarm.active ? <Bell size={18} /> : <BellOff size={18} />}
                   </button>
                   <div className="flex flex-col">
                     <span className={`text-3xl font-light ${alarm.active ? 'text-white' : 'text-white/50'}`}>
-                      {alarm.time}
+                      {formatAlarmTime(alarm.time, timeFormat)}
                     </span>
                     <span className="text-[10px] text-white/30 mt-0.5">
                       {(ALARM_SOUNDS.find(s => s.id === alarm.sound) || ALARM_SOUNDS[0]).emoji}{' '}

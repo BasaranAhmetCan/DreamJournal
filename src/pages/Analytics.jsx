@@ -62,7 +62,7 @@ const Analytics = () => {
       if (score < 3) moodStr = "Negatif";
 
       return (
-        <div className="bg-[#1A1A2E]/90 border border-white/10 p-3 rounded-xl backdrop-blur-md">
+        <div className="bg-dream-mid/90 border border-white/10 p-3 rounded-xl backdrop-blur-md">
           <p className="text-white/50 text-xs mb-1">{label}</p>
           <p className="text-dream-accent font-medium text-sm">Puan: {score.toFixed(1)}</p>
           <p className="text-white/80 text-xs">{moodStr}</p>

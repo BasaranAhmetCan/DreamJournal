@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Sparkles, Send, User, LogOut } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Mic, MicOff, Sparkles, Send, User, LogOut, Settings, Sun, Moon, Bell, X } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useDreamContext } from '../context/DreamContext';
+import { getZodiacSign } from '../utils/zodiac';
+import { formatAlarmTime } from '../utils/timeFormat';
 
 const PLACEHOLDERS = [
   "Dün gece ne gördün?...",
@@ -22,7 +24,105 @@ const Home = () => {
   const [selectedTags, setSelectedTags] = useState([]);
   
   const navigate = useNavigate();
-  const { addDream, userProfile, setUserProfile } = useDreamContext();
+  const location = useLocation();
+  const { 
+    addDream, 
+    userProfile, 
+    setUserProfile, 
+    firebaseUser,
+    theme, 
+    toggleTheme, 
+    timeFormat, 
+    setTimeFormat, 
+    reminderSettings, 
+    setReminderSettings 
+  } = useDreamContext();
+  
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
+  const formatBirthDate = (dobStr) => {
+    if (!dobStr) return 'Seçilmedi';
+    const parts = dobStr.split('-');
+    if (parts.length !== 3) return dobStr;
+    const year = parts[0];
+    const monthIdx = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+    return `${day} ${months[monthIdx]} ${year}`;
+  };
+
+  const getDateValues = (dobStr) => {
+    const defaultDate = new Date();
+    if (!dobStr) {
+      return { 
+        day: 1, 
+        month: 1, 
+        year: defaultDate.getFullYear() - 25 
+      };
+    }
+    const parts = dobStr.split('-');
+    if (parts.length !== 3) {
+      return { 
+        day: 1, 
+        month: 1, 
+        year: defaultDate.getFullYear() - 25 
+      };
+    }
+    return {
+      year: parseInt(parts[0], 10),
+      month: parseInt(parts[1], 10),
+      day: parseInt(parts[2], 10)
+    };
+  };
+
+  const saveBirthDate = (d, m, y) => {
+    const formattedDob = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const newZodiac = getZodiacSign(parseInt(d), parseInt(m));
+    setUserProfile(prev => ({ 
+      ...prev, 
+      dob: formattedDob, 
+      zodiac: newZodiac 
+    }));
+  };
+
+  const dateValues = getDateValues(userProfile?.dob);
+
+  const getPickerValues = (timeStr, format) => {
+    if (!timeStr) return { hour: 8, minute: 0, ampm: 'AM' };
+    const [hStr, mStr] = timeStr.split(':');
+    const h24 = parseInt(hStr, 10);
+    const minute = parseInt(mStr, 10);
+    
+    if (format === '24h') {
+      return { hour: h24, minute, ampm: 'AM' };
+    } else {
+      const ampm = h24 >= 12 ? 'PM' : 'AM';
+      const hour12 = h24 % 12 === 0 ? 12 : h24 % 12;
+      return { hour: hour12, minute, ampm };
+    }
+  };
+
+  const savePickerTime = (h, m, ampm, format) => {
+    let h24 = parseInt(h, 10);
+    const minuteStr = String(m).padStart(2, '0');
+    
+    if (format === '24h') {
+      const hourStr = String(h24).padStart(2, '0');
+      setReminderSettings(prev => ({ ...prev, time: `${hourStr}:${minuteStr}` }));
+    } else {
+      if (ampm === 'AM') {
+        if (h24 === 12) h24 = 0;
+      } else {
+        if (h24 !== 12) h24 = h24 + 12;
+      }
+      const hourStr = String(h24).padStart(2, '0');
+      setReminderSettings(prev => ({ ...prev, time: `${hourStr}:${minuteStr}` }));
+    }
+  };
+
+  const pickerValues = getPickerValues(reminderSettings.time, timeFormat);
   
   // SpeechRecognition referansı
   const recognitionRef = useRef(null);
@@ -70,8 +170,14 @@ const Home = () => {
       };
 
       recognitionRef.current = recognition;
+
+      if (location.state?.recordImmediately) {
+        recognition.start();
+        setIsListening(true);
+        navigate(location.pathname, { replace: true, state: {} });
+      }
     }
-  }, []);
+  }, [location, navigate]);
 
   const toggleListening = () => {
     if (!recognitionRef.current) {
@@ -110,9 +216,17 @@ const Home = () => {
     setIsAnalyzing(true);
     
     try {
+      let token = "";
+      if (firebaseUser) {
+        token = await firebaseUser.getIdToken();
+      }
+
       const response = await fetch('/api/analyze-dream', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ 
           text: dreamText,
           zodiac: userProfile?.zodiac || 'Bilinmiyor'
@@ -163,22 +277,31 @@ const Home = () => {
         <h1 className="text-xl font-light text-white/50 tracking-[0.3em] uppercase">
           Rüya Günlüğü
         </h1>
-        {userProfile && (
-          <div className="flex items-center gap-2 bg-white/5 pl-4 pr-2 py-2 rounded-full border border-white/10 group">
-            <User size={14} className="text-dream-accent" />
-            <span className="text-xs font-medium text-white/80">{userProfile.name}</span>
-            <span className="text-[10px] text-white/40 uppercase tracking-widest px-1 border-l border-white/20 ml-1 pl-2">
-              {userProfile.zodiac}
-            </span>
-            <button 
-              onClick={handleLogout}
-              className="ml-2 p-1.5 rounded-full hover:bg-red-500/20 hover:text-red-400 text-white/40 transition-colors"
-              title="Çıkış Yap"
-            >
-              <LogOut size={12} />
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {userProfile && (
+            <div className="flex items-center gap-2 bg-white/5 pl-4 pr-2 py-2 rounded-full border border-white/10 group">
+              <User size={14} className="text-dream-accent" />
+              <span className="text-xs font-medium text-white/80">{userProfile.name}</span>
+              <span className="text-[10px] text-white/40 uppercase tracking-widest px-1 border-l border-white/20 ml-1 pl-2">
+                {userProfile.zodiac}
+              </span>
+              <button 
+                onClick={handleLogout}
+                className="ml-2 p-1.5 rounded-full hover:bg-red-500/20 hover:text-red-400 text-white/40 transition-colors"
+                title="Çıkış Yap"
+              >
+                <LogOut size={12} />
+              </button>
+            </div>
+          )}
+          <button 
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 transition-all duration-300 animate-pulse-slow"
+            title="Ayarlar"
+          >
+            <Settings size={16} />
+          </button>
+        </div>
       </motion.div>
 
       <motion.div 
@@ -257,7 +380,7 @@ const Home = () => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={handleSave}
-                        className="absolute bottom-4 right-4 w-12 h-12 bg-gradient-to-tr from-[#7C3AED] to-[#8B5CF6] rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.4)] text-white"
+                        className="absolute bottom-4 right-4 w-12 h-12 bg-gradient-to-tr from-[#7C3AED] to-[#8B5CF6] rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.4)] text-pure-white"
                       >
                         <Send size={20} className="ml-1" />
                       </motion.button>
@@ -288,6 +411,273 @@ const Home = () => {
         </div>
 
       </motion.div>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSettingsOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+            />
+            
+            {/* Modal Container */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-sm bg-dream-mid border border-white/5 rounded-3xl p-6 shadow-2xl overflow-hidden flex flex-col gap-6 text-white"
+            >
+              {/* Decorative background glow */}
+              <div className="absolute -top-24 -left-24 w-48 h-48 bg-dream-accent/20 rounded-full blur-3xl pointer-events-none" />
+              
+              <header className="flex justify-between items-center relative z-10">
+                <h2 className="text-lg font-light tracking-wider uppercase text-white/90">Ayarlar</h2>
+                <button 
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="p-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white/50 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </header>
+              
+              <div className="relative z-10 flex flex-col gap-5 max-h-[65vh] overflow-y-auto pr-1 scrollbar-thin">
+                
+                {/* Name & Birthday Info */}
+                <div className="flex flex-col gap-4 bg-white/[0.02] border border-white/5 p-5 rounded-2xl">
+                  <h3 className="text-xs uppercase tracking-widest text-white/40 font-medium">Profil Bilgileri</h3>
+                  
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-white/50 font-light">Adınız</label>
+                    <input 
+                      type="text"
+                      value={userProfile?.name || ''}
+                      onChange={(e) => setUserProfile(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full bg-dream-dark/50 dark:bg-black/20 border border-dream-light dark:border-white/10 rounded-xl px-4 py-2.5 outline-none focus:border-dream-accent transition-colors text-sm text-white/90"
+                      placeholder="Adınız"
+                    />
+                  </div>
+                  
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs text-white/50 font-light">Doğum Gününüz</label>
+                      <button 
+                        type="button"
+                        onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+                        className="bg-dream-accent/15 border border-dream-accent/30 text-dream-accent rounded-xl px-4 py-2 text-sm font-semibold hover:bg-dream-accent/25 transition-all duration-300 shadow-sm"
+                      >
+                        {formatBirthDate(userProfile?.dob)}
+                      </button>
+                    </div>
+
+                    {isDatePickerOpen && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex gap-2 bg-dream-light/30 dark:bg-black/20 border border-dream-light/50 dark:border-white/5 p-3 rounded-2xl justify-center items-center mt-1"
+                      >
+                        {/* Day Select */}
+                        <select 
+                          value={dateValues.day} 
+                          onChange={(e) => saveBirthDate(e.target.value, dateValues.month, dateValues.year)}
+                          className="bg-dream-dark/50 dark:bg-dream-mid border border-dream-light dark:border-white/10 rounded-xl px-2 py-1.5 text-xs outline-none text-white/90 focus:border-dream-accent cursor-pointer"
+                          style={{ colorScheme: theme }}
+                        >
+                          {[...Array(31).keys()].map(d => (
+                            <option 
+                              key={d + 1} 
+                              value={d + 1}
+                              style={{ backgroundColor: theme === 'light' ? '#E4D9EE' : '#0E0D1F', color: theme === 'light' ? '#160826' : '#ffffff' }}
+                            >
+                              {String(d + 1).padStart(2, '0')}
+                            </option>
+                          ))}
+                        </select>
+
+                        {/* Month Select */}
+                        <select 
+                          value={dateValues.month} 
+                          onChange={(e) => saveBirthDate(dateValues.day, e.target.value, dateValues.year)}
+                          className="bg-dream-dark/50 dark:bg-dream-mid border border-dream-light dark:border-white/10 rounded-xl px-2 py-1.5 text-xs outline-none text-white/90 focus:border-dream-accent cursor-pointer"
+                          style={{ colorScheme: theme }}
+                        >
+                          {['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'].map((m, idx) => (
+                            <option 
+                              key={idx + 1} 
+                              value={idx + 1}
+                              style={{ backgroundColor: theme === 'light' ? '#E4D9EE' : '#0E0D1F', color: theme === 'light' ? '#160826' : '#ffffff' }}
+                            >
+                              {m}
+                            </option>
+                          ))}
+                        </select>
+
+                        {/* Year Select */}
+                        <select 
+                          value={dateValues.year} 
+                          onChange={(e) => saveBirthDate(dateValues.day, dateValues.month, e.target.value)}
+                          className="bg-dream-dark/50 dark:bg-dream-mid border border-dream-light dark:border-white/10 rounded-xl px-2 py-1.5 text-xs outline-none text-white/90 focus:border-dream-accent cursor-pointer"
+                          style={{ colorScheme: theme }}
+                        >
+                          {[...Array(100).keys()].map(i => {
+                            const y = new Date().getFullYear() - i;
+                            return (
+                              <option 
+                                key={y} 
+                                value={y}
+                                style={{ backgroundColor: theme === 'light' ? '#E4D9EE' : '#0E0D1F', color: theme === 'light' ? '#160826' : '#ffffff' }}
+                              >
+                                {y}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Preferences: Theme & Time Format */}
+                <div className="flex flex-col gap-4 bg-white/[0.02] border border-white/5 p-5 rounded-2xl">
+                  <h3 className="text-xs uppercase tracking-widest text-white/40 font-medium">Uygulama Tercihleri</h3>
+                  
+                  {/* Theme Row */}
+                  <div className="flex justify-between items-center py-1">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm font-medium text-white/80">Tema</span>
+                      <span className="text-[10px] text-white/40">Görünüm stilini değiştirin</span>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={toggleTheme}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-dream-accent/20 border border-dream-accent/30 hover:bg-dream-accent/30 text-dream-accent text-xs font-semibold uppercase tracking-wider transition-colors"
+                    >
+                      {theme === 'dark' ? <Moon size={12} /> : <Sun size={12} />}
+                      <span>{theme === 'dark' ? 'Koyu' : 'Açık'}</span>
+                    </button>
+                  </div>
+
+                  {/* Time Format Row */}
+                  <div className="flex justify-between items-center py-1 border-t border-white/5 pt-3">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm font-medium text-white/80">Zaman Sistemi</span>
+                      <span className="text-[10px] text-white/40">Alarm gösterim formatı</span>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setTimeFormat(prev => prev === '24h' ? '12h' : '24h')}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-dream-accent/20 border border-dream-accent/30 hover:bg-dream-accent/30 text-dream-accent text-xs font-semibold uppercase tracking-wider transition-colors"
+                    >
+                      <span>{timeFormat === '24h' ? '24 Saat' : '12 Saat'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Daily Reminder Settings */}
+                <div className="flex flex-col gap-4 bg-white/[0.02] border border-white/5 p-5 rounded-2xl">
+                  <div className="flex justify-between items-center">
+                    <div className="flex flex-col gap-0.5 font-sans">
+                      <h3 className="text-xs uppercase tracking-widest text-white/40 font-medium">Rüya Hatırlatıcı</h3>
+                      <span className="text-[10px] text-white/40">Her sabah rüyanızı hatırlatır</span>
+                    </div>
+                    <input 
+                      type="checkbox"
+                      checked={reminderSettings.active}
+                      onChange={(e) => setReminderSettings(prev => ({ ...prev, active: e.target.checked }))}
+                      className="w-4 h-4 accent-dream-accent cursor-pointer"
+                    />
+                  </div>
+                  
+                  {reminderSettings.active && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="flex flex-col gap-2 border-t border-white/5 pt-3 mt-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs text-white/50 font-light flex items-center gap-1.5">
+                          <Bell size={12} className="text-dream-accent" />
+                          Bildirim Saati
+                        </label>
+                        <button 
+                          type="button"
+                          onClick={() => setIsTimePickerOpen(!isTimePickerOpen)}
+                          className="bg-dream-accent/15 border border-dream-accent/30 text-dream-accent rounded-xl px-4 py-2 text-sm font-semibold hover:bg-dream-accent/25 transition-all duration-300 shadow-sm"
+                        >
+                          {formatAlarmTime(reminderSettings.time, timeFormat)}
+                        </button>
+                      </div>
+
+                      {isTimePickerOpen && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="flex gap-2 bg-dream-light/30 dark:bg-black/20 border border-dream-light/50 dark:border-white/5 p-3 rounded-2xl justify-center items-center mt-1"
+                        >
+                          {/* Hour Select */}
+                          <select 
+                            value={pickerValues.hour} 
+                            onChange={(e) => savePickerTime(e.target.value, pickerValues.minute, pickerValues.ampm, timeFormat)}
+                            className="bg-dream-dark/50 dark:bg-dream-mid border border-dream-light dark:border-white/10 rounded-xl px-3 py-1.5 text-sm outline-none text-white/90 focus:border-dream-accent cursor-pointer"
+                            style={{ colorScheme: theme }}
+                          >
+                            {(timeFormat === '24h' ? [...Array(24).keys()] : [...Array(12).keys()].map(i => i + 1)).map(h => (
+                              <option 
+                                key={h} 
+                                value={h}
+                                style={{ backgroundColor: theme === 'light' ? '#E4D9EE' : '#0E0D1F', color: theme === 'light' ? '#160826' : '#ffffff' }}
+                              >
+                                {String(h).padStart(2, '0')}
+                              </option>
+                            ))}
+                          </select>
+                          
+                          <span className="text-white/50 font-medium">:</span>
+                          
+                          {/* Minute Select */}
+                          <select 
+                            value={pickerValues.minute} 
+                            onChange={(e) => savePickerTime(pickerValues.hour, e.target.value, pickerValues.ampm, timeFormat)}
+                            className="bg-dream-dark/50 dark:bg-dream-mid border border-dream-light dark:border-white/10 rounded-xl px-3 py-1.5 text-sm outline-none text-white/90 focus:border-dream-accent cursor-pointer"
+                            style={{ colorScheme: theme }}
+                          >
+                            {[...Array(60).keys()].map(m => (
+                              <option 
+                                key={m} 
+                                value={m}
+                                style={{ backgroundColor: theme === 'light' ? '#E4D9EE' : '#0E0D1F', color: theme === 'light' ? '#160826' : '#ffffff' }}
+                              >
+                                {String(m).padStart(2, '0')}
+                              </option>
+                            ))}
+                          </select>
+
+                          {/* AM/PM Switcher */}
+                          {timeFormat === '12h' && (
+                            <button
+                              type="button"
+                              onClick={() => savePickerTime(pickerValues.hour, pickerValues.minute, pickerValues.ampm === 'AM' ? 'PM' : 'AM', timeFormat)}
+                              className="px-3 py-1.5 rounded-xl bg-dream-accent/25 border border-dream-accent/35 text-dream-accent text-xs font-semibold uppercase tracking-wider transition-colors hover:bg-dream-accent/35"
+                            >
+                              {pickerValues.ampm}
+                            </button>
+                          )}
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  )}
+                </div>
+
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

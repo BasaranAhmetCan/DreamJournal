@@ -10,7 +10,8 @@ import Journal from './pages/Journal';
 import Analytics from './pages/Analytics';
 import Profile from './pages/Profile';
 import DreamDetail from './pages/DreamDetail';
-import Onboarding from './pages/Onboarding';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import Alarm from './pages/Alarm';
 import AlarmRinging from './pages/AlarmRinging';
 import { 
@@ -26,8 +27,8 @@ const AuthWrapper = ({ children }) => {
   const location = useLocation();
 
   useEffect(() => {
-    if (!userProfile && location.pathname !== '/onboarding') {
-      navigate('/onboarding');
+    if (!userProfile && location.pathname !== '/login' && location.pathname !== '/register') {
+      navigate('/login');
     }
   }, [userProfile, navigate, location]);
 
@@ -50,15 +51,16 @@ const AlarmScheduler = () => {
     const checkAlarms = () => {
       const now = new Date();
       const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const currentDateStr = now.toDateString(); // Günlük bazda tetiklemeyi sınırlamak için
       
       const matchingAlarm = alarms.find(a => 
         a.active && 
         a.time === currentTime && 
-        !firedAlarmsRef.current.has(`${a.id}-${currentTime}`)
+        !firedAlarmsRef.current.has(`${a.id}-${currentDateStr}-${currentTime}`)
       );
       
       if (matchingAlarm) {
-        firedAlarmsRef.current.add(`${matchingAlarm.id}-${currentTime}`);
+        firedAlarmsRef.current.add(`${matchingAlarm.id}-${currentDateStr}-${currentTime}`);
         navigate('/alarm-ringing', { state: { sound: matchingAlarm.sound || 'gentle' } });
       }
     };
@@ -118,7 +120,8 @@ const AnimatedRoutes = () => {
       <NativeInitializer />
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
-          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/alarm-ringing" element={<AlarmRinging />} />
           
           <Route path="/" element={<AuthWrapper><Layout /></AuthWrapper>}>

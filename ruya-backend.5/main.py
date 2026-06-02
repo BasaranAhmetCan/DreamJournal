@@ -4,6 +4,9 @@ import random
 from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends
+
+from auth import get_current_user
 from pydantic import BaseModel
 from google import genai
 from dotenv import load_dotenv
@@ -99,21 +102,32 @@ SADECE TEK BİR KELİME YAZ. Başka hiçbir şey ekleme.""",
 
     @staticmethod
     def generate_dream_image(dream_text: str) -> str:
-        """Gemini ile prompt'u iyileştirip Pollinations AI üzerinden görsel oluşturur."""
+        """Gemini ile prompt'u iyileştirip OpenAI DALL-E üzerinden görsel oluşturur."""
         optimized_prompt = DreamAI.optimize_image_prompt(dream_text)
         
         # Eğer API hatası gelirse veya geçersiz bir yanıt dönerse varsayılan bir prompt kullan
         if not optimized_prompt or "Analiz motoru" in optimized_prompt:
             optimized_prompt = f"A surreal, highly detailed and high quality painting of this dream: {dream_text}"
 
-        # İngilizce URL için uygun hale getiriyoruz
-        clean_prompt = urllib.parse.quote(optimized_prompt)
-        
-        # Aynı rüyayı yazarsan farklı resim gelsin diye kilit numarası (seed)
-        lock_id = random.randint(1, 1000000)
-        
-        # Pollinations AI görsel oluşturma linki
-        return f"https://image.pollinations.ai/prompt/{clean_prompt}?width=1024&height=1024&nologo=true&seed={lock_id}"
+        try:
+            from openai import OpenAI
+            import os
+            import urllib.parse
+            import random
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            response = client.images.generate(
+                model="dall-e-3",
+                prompt=optimized_prompt,
+                size="1024x1024",
+                quality="standard",
+                n=1,
+            )
+            return response.data[0].url
+        except Exception as e:
+            print(f"OpenAI Image Error: {e}")
+            clean_prompt = urllib.parse.quote(optimized_prompt)
+            lock_id = random.randint(1, 1000000)
+            return f"https://image.pollinations.ai/prompt/{clean_prompt}?width=1024&height=1024&nologo=true&seed={lock_id}"
 
     @staticmethod
     def analyze_dream_all_in_one(dream_text: str, zodiac: str) -> dict:
@@ -173,8 +187,9 @@ async def generate_image_endpoint(request: ImageRequest):
         raise HTTPException(status_code=500, detail=f"Görsel oluşturma hatası: {str(e)}")
 
 @app.post("/api/analyze-dream", response_model=DreamResponse)
-async def analyze_dream_endpoint(request: DreamRequest):
+async def analyze_dream_endpoint(request: DreamRequest, current_user: dict = Depends(get_current_user)):
     try:
+        # current_user loglanabilir: print(f"Analiz isteği: {current_user['email']}")
         cleaned_text = DreamAI.pre_process_text(request.text)
         if not cleaned_text:
             raise HTTPException(status_code=400, detail="Rüya içeriği boş olamaz.")
@@ -200,4 +215,6 @@ async def analyze_dream_endpoint(request: DreamRequest):
             image_prompt=data.get("image_prompt", f"A surreal painting of this dream: {cleaned_text}")
         )
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Sistem analiz motoru hatası: {str(e)}")

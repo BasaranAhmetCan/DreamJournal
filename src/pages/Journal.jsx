@@ -99,7 +99,7 @@ const Journal = () => {
                   className={`
                     relative py-2 mx-1 rounded-lg transition-all 
                     ${hasDream ? 'cursor-pointer text-white/90' : 'text-white/30 cursor-default'}
-                    ${isSelected ? 'bg-dream-accent text-white font-medium shadow-[0_0_15px_rgba(139,92,246,0.4)]' : ''}
+                    ${isSelected ? 'bg-dream-accent text-pure-white font-medium shadow-[0_0_15px_rgba(139,92,246,0.4)]' : ''}
                     ${hasDream && !isSelected ? 'hover:bg-white/10' : ''}
                   `}
                 >

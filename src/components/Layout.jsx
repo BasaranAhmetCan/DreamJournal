@@ -27,7 +27,7 @@ const Layout = () => {
             {({ isActive }) => (
               <>
                 <div className={`absolute inset-0 rounded-full blur-xl transition-opacity duration-500 ${isActive ? 'bg-dream-accent/50 opacity-100' : 'bg-white/10 opacity-0'}`} />
-                <div className={`relative z-10 flex items-center justify-center w-14 h-14 rounded-full shadow-lg transition-all duration-500 ${isActive ? 'bg-gradient-to-tr from-[#7C3AED] to-[#8B5CF6] text-white shadow-[0_0_30px_rgba(139,92,246,0.4)]' : 'bg-dream-light border border-white/10 text-white/50'}`}>
+                <div className={`relative z-10 flex items-center justify-center w-14 h-14 rounded-full shadow-lg transition-all duration-500 ${isActive ? 'bg-gradient-to-tr from-[#7C3AED] to-[#8B5CF6] text-pure-white shadow-[0_0_30px_rgba(139,92,246,0.4)]' : 'bg-dream-light border border-white/10 text-white/50'}`}>
                   <Mic size={24} strokeWidth={isActive ? 2 : 1.5} />
                 </div>
               </>

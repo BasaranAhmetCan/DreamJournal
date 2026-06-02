@@ -3,22 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useDreamContext } from '../context/DreamContext';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
+import { getZodiacSign } from '../utils/zodiac';
 
-const getZodiacSign = (day, month) => {
-  if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return 'Koç';
-  if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return 'Boğa';
-  if ((month === 5 && day >= 21) || (month === 6 && day <= 21)) return 'İkizler';
-  if ((month === 6 && day >= 22) || (month === 7 && day <= 22)) return 'Yengeç';
-  if ((month === 7 && day >= 23) || (month === 8 && day <= 22)) return 'Aslan';
-  if ((month === 8 && day >= 23) || (month === 9 && day <= 22)) return 'Başak';
-  if ((month === 9 && day >= 23) || (month === 10 && day <= 22)) return 'Terazi';
-  if ((month === 10 && day >= 23) || (month === 11 && day <= 21)) return 'Akrep';
-  if ((month === 11 && day >= 22) || (month === 12 && day <= 21)) return 'Yay';
-  if ((month === 12 && day >= 22) || (month === 1 && day <= 19)) return 'Oğlak';
-  if ((month === 1 && day >= 20) || (month === 2 && day <= 18)) return 'Kova';
-  if ((month === 2 && day >= 19) || (month === 3 && day <= 20)) return 'Balık';
-  return '';
-};
+
 
 // Özel açılır menü bileşeni (Tarayıcının gri menüsünü engellemek için)
 const CustomSelect = ({ value, onChange, options, placeholder, flexClass }) => {
@@ -54,7 +41,7 @@ const CustomSelect = ({ value, onChange, options, placeholder, flexClass }) => {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute top-full left-0 w-full mt-2 bg-[#1A1A2E] border border-white/10 rounded-xl max-h-48 overflow-y-auto z-50 shadow-2xl scrollbar-thin scrollbar-thumb-white/10"
+            className="absolute top-full left-0 w-full mt-2 bg-dream-mid border border-white/10 rounded-xl max-h-48 overflow-y-auto z-50 shadow-2xl scrollbar-thin scrollbar-thumb-white/10"
           >
             {options.map((opt) => (
               <button
@@ -161,7 +148,7 @@ const Onboarding = () => {
 
           <button 
             type="submit"
-            className="mt-4 w-full py-4 rounded-xl bg-gradient-to-r from-[#7C3AED] to-[#8B5CF6] text-white font-medium shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all active:scale-95"
+            className="mt-4 w-full py-4 rounded-xl bg-gradient-to-r from-[#7C3AED] to-[#8B5CF6] text-pure-white font-medium shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all active:scale-95"
           >
             Rüya Alemine Giriş Yap
           </button>

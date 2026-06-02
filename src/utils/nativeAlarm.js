@@ -223,3 +223,48 @@ const getAlarmSoundFile = (soundId) => {
   };
   return soundMap[soundId] || 'alarm_gentle.wav';
 };
+
+/**
+ * Rüya hatırlatıcı bildirimini zamanlar.
+ * @param {Object} settings - { active, time }
+ */
+export const scheduleReminderNotification = async (settings) => {
+  if (!isNativePlatform()) return;
+
+  const reminderNotificationId = 999999; // Rüya hatırlatıcı için sabit ID
+
+  try {
+    // Önceki bildirimi iptal et
+    await LocalNotifications.cancel({
+      notifications: [{ id: reminderNotificationId }]
+    });
+
+    if (!settings.active) return;
+
+    const [hours, minutes] = settings.time.split(':').map(Number);
+
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: reminderNotificationId,
+          title: '📝 Rüya Hatırlatıcı',
+          body: 'Günaydın! Gördüğünüz rüyaları unutmadan kaydetmek ister misiniz? ✨',
+          schedule: {
+            on: {
+              hour: hours,
+              minute: minutes
+            },
+            every: 'day',
+            allowWhileIdle: true
+          },
+          sound: null, // Varsayılan bildirim sesi
+          autoCancel: true,
+        }
+      ]
+    });
+
+    console.log(`Rüya hatırlatıcısı zamanlandı: Her gün saat ${settings.time}`);
+  } catch (err) {
+    console.error('Rüya hatırlatıcı zamanlama hatası:', err);
+  }
+};

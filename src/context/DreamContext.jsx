@@ -1,85 +1,196 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { mockDreams } from '../data/mockData';
 import { 
   isNativePlatform, 
   scheduleNativeAlarm, 
   cancelNativeAlarm, 
-  rescheduleAllAlarms 
+  rescheduleAllAlarms,
+  scheduleReminderNotification 
 } from '../utils/nativeAlarm';
+import { formatAlarmTime } from '../utils/timeFormat';
+
+// Firebase imports
+import { auth, db } from '../firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { collection, doc, getDoc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 
 const DreamContext = createContext();
 
 export const useDreamContext = () => useContext(DreamContext);
 
 export const DreamProvider = ({ children }) => {
-  // --- Kullanıcı ve Onboarding ---
-  const [userProfile, setUserProfile] = useState(() => {
-    const saved = localStorage.getItem('dreamAI_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  // --- Kullanıcı ve Firebase Auth ---
+  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
 
   // --- Rüyalar ---
-  const [dreams, setDreams] = useState(() => {
-    const saved = localStorage.getItem('dreamAI_dreams');
-    return saved ? JSON.parse(saved) : mockDreams;
-  });
+  const [dreams, setDreams] = useState([]);
 
-  // --- Çoklu Alarmlar ---
+  // Auth Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setFirebaseUser(user);
+      if (user) {
+        // Kullanıcı giriş yaptı, Firestore'dan bilgilerini çek
+        const docRef = doc(db, "kullanicilar", user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setUserProfile(docSnap.data());
+        } else {
+          setUserProfile({ email: user.email });
+        }
+      } else {
+        // Çıkış yaptı
+        setUserProfile(null);
+        setDreams([]); // Rüyaları temizle
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Rüyaları Firestore'dan Dinle (Real-time)
+  useEffect(() => {
+    if (!firebaseUser) return;
+
+    const q = collection(db, `kullanicilar/${firebaseUser.uid}/ruyalar`);
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const dreamsArray = [];
+      querySnapshot.forEach((docSnap) => {
+        dreamsArray.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      // ID'ye (Date.now) veya date'e göre azalan sıralama
+      dreamsArray.sort((a, b) => b.id.localeCompare(a.id));
+      setDreams(dreamsArray);
+    }, (error) => {
+      console.error("Firestore rüya çekme hatası:", error);
+    });
+
+    return () => unsubscribe();
+  }, [firebaseUser]);
+
+  // --- Çoklu Alarmlar (Cihaza özel olduğu için localStorage'da tutulur) ---
   const [alarms, setAlarms] = useState(() => {
     const saved = localStorage.getItem('dreamAI_alarms');
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Veriler değiştikçe LocalStorage'a kaydet
-  useEffect(() => {
-    if (userProfile) localStorage.setItem('dreamAI_user', JSON.stringify(userProfile));
-  }, [userProfile]);
+  // --- Tema Ayarı ---
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('dreamAI_theme') || 'dark';
+  });
 
   useEffect(() => {
-    localStorage.setItem('dreamAI_dreams', JSON.stringify(dreams));
-  }, [dreams]);
+    localStorage.setItem('dreamAI_theme', theme);
+    const root = window.document.documentElement;
+    if (theme === 'light') {
+      root.classList.add('light');
+      root.classList.remove('dark');
+    } else {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
+  // --- Zaman Formatı Ayarı ---
+  const [timeFormat, setTimeFormat] = useState(() => {
+    return localStorage.getItem('dreamAI_timeFormat') || '24h';
+  });
+
+  // --- Günlük Hatırlatıcı Ayarları ---
+  const [reminderSettings, setReminderSettings] = useState(() => {
+    const saved = localStorage.getItem('dreamAI_reminderSettings');
+    return saved ? JSON.parse(saved) : { active: false, time: '08:00' };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('dreamAI_timeFormat', timeFormat);
+  }, [timeFormat]);
+
+  useEffect(() => {
+    localStorage.setItem('dreamAI_reminderSettings', JSON.stringify(reminderSettings));
+
+    if (isNativePlatform()) {
+      scheduleReminderNotification(reminderSettings);
+    } else {
+      if (reminderSettings.active && typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+          new Notification('📝 Rüya Hatırlatıcısı', {
+            body: `Rüya hatırlatıcınız her gün saat ${formatAlarmTime(reminderSettings.time, timeFormat)} için aktif edildi! ✨`,
+            icon: '/favicon.svg'
+          });
+        } else if (Notification.permission !== 'denied') {
+          Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+              new Notification('📝 Rüya Hatırlatıcısı', {
+                body: `Rüya hatırlatıcınız her gün saat ${formatAlarmTime(reminderSettings.time, timeFormat)} için aktif edildi! ✨`,
+              });
+            }
+          });
+        }
+      }
+    }
+  }, [reminderSettings, timeFormat]);
 
   useEffect(() => {
     localStorage.setItem('dreamAI_alarms', JSON.stringify(alarms));
   }, [alarms]);
 
-  // Native platformda uygulama başladığında alarmları yeniden zamanla
   useEffect(() => {
     if (isNativePlatform() && alarms.length > 0) {
       rescheduleAllAlarms(alarms);
     }
-  }, []); // Sadece ilk mount'ta çalışır
+  }, []);
 
-  // Yeni rüya ekleme
-  const addDream = (dreamData) => {
+  // Yeni rüya ekleme (Firestore'a yazar)
+  const addDream = async (dreamData) => {
+    if (!firebaseUser) return null;
+    const newId = Date.now().toString();
     const newDream = {
-      id: Date.now().toString(),
       date: new Date().toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' }),
       ...dreamData,
       isFavorite: false
     };
-    setDreams(prev => [newDream, ...prev]);
-    return newDream.id;
+    
+    // Firestore'a kaydet (onSnapshot hook'u sayesinde `dreams` state'i otomatik güncellenecek)
+    await setDoc(doc(db, `kullanicilar/${firebaseUser.uid}/ruyalar`, newId), newDream);
+    return newId;
   };
 
-  const toggleFavorite = (id) => {
-    setDreams(prev => prev.map(d => d.id === id ? { ...d, isFavorite: !d.isFavorite } : d));
+  const toggleFavorite = async (id) => {
+    if (!firebaseUser) return;
+    const dream = dreams.find(d => d.id === id);
+    if (dream) {
+      await setDoc(doc(db, `kullanicilar/${firebaseUser.uid}/ruyalar`, id), { 
+        ...dream, 
+        isFavorite: !dream.isFavorite 
+      });
+    }
   };
   
-  const setImageForDream = (id, imageUrl) => {
-    setDreams(prev => prev.map(d => d.id === id ? { ...d, imageUrl } : d));
+  const setImageForDream = async (id, imageUrl) => {
+    if (!firebaseUser) return;
+    const dream = dreams.find(d => d.id === id);
+    if (dream) {
+      await setDoc(doc(db, `kullanicilar/${firebaseUser.uid}/ruyalar`, id), { 
+        ...dream, 
+        imageUrl 
+      });
+    }
   };
 
-  const deleteDream = (id) => {
-    setDreams(prev => prev.filter(d => d.id !== id));
+  const deleteDream = async (id) => {
+    if (!firebaseUser) return;
+    await deleteDoc(doc(db, `kullanicilar/${firebaseUser.uid}/ruyalar`, id));
   };
 
   // Alarm Fonksiyonları
   const addAlarm = (time, sound = 'gentle') => {
     const newAlarm = { id: Date.now().toString(), time, active: true, sound };
     setAlarms(prev => [...prev, newAlarm]);
-    
-    // Native platformda bildirimi zamanla
     if (isNativePlatform()) {
       scheduleNativeAlarm(newAlarm);
     }
@@ -88,7 +199,6 @@ export const DreamProvider = ({ children }) => {
   const updateAlarmSound = (id, sound) => {
     setAlarms(prev => {
       const updated = prev.map(a => a.id === id ? { ...a, sound } : a);
-      // Native platformda yeniden zamanla
       if (isNativePlatform()) {
         const alarm = updated.find(a => a.id === id);
         if (alarm && alarm.active) {
@@ -102,7 +212,6 @@ export const DreamProvider = ({ children }) => {
   const toggleAlarm = (id) => {
     setAlarms(prev => {
       const updated = prev.map(a => a.id === id ? { ...a, active: !a.active } : a);
-      // Native platformda aktif/pasif yap
       if (isNativePlatform()) {
         const alarm = updated.find(a => a.id === id);
         if (alarm) {
@@ -118,7 +227,6 @@ export const DreamProvider = ({ children }) => {
   };
 
   const removeAlarm = (id) => {
-    // Native platformda bildirimi iptal et
     if (isNativePlatform()) {
       cancelNativeAlarm(id);
     }
@@ -128,8 +236,12 @@ export const DreamProvider = ({ children }) => {
   return (
     <DreamContext.Provider value={{
       userProfile, setUserProfile,
+      firebaseUser,
       dreams, addDream, toggleFavorite, setImageForDream, deleteDream,
-      alarms, addAlarm, toggleAlarm, removeAlarm, updateAlarmSound
+      alarms, addAlarm, toggleAlarm, removeAlarm, updateAlarmSound,
+      theme, toggleTheme,
+      timeFormat, setTimeFormat,
+      reminderSettings, setReminderSettings
     }}>
       {children}
     </DreamContext.Provider>

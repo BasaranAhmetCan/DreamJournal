@@ -2,9 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --dream-white: 255, 255, 255;
+  --dream-dark: 8, 11, 20;       /* #080B14 */
+  --dream-mid: 14, 13, 31;       /* #0E0D1F */
+  --dream-light: 30, 20, 51;     /* #1E1433 */
+  --dream-accent: 139, 92, 246;  /* #8B5CF6 */
+}
+
+html.light {
+  --dream-white: 22, 8, 38;        /* Very dark purple-black for maximum legibility and highest contrast */
+  --dream-dark: 242, 236, 247;    /* Brighter soft lilac-purple background to make text pop */
+  --dream-mid: 228, 217, 238;     /* Clean pastel lilac for cards and navbar */
+  --dream-light: 212, 196, 227;   /* Slightly deeper lilac for borders and selection overlays */
+  --dream-accent: 124, 58, 237;   /* Deep violet-purple for branding and active indicators */
+}
+
 @layer base {
   body {
     @apply bg-dream-dark text-white font-sans antialiased m-0 p-0;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
 
@@ -16,9 +33,9 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.3); /* dream-accent */
+  background: rgba(var(--dream-accent), 0.3); /* dream-accent */
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.5);
+  background: rgba(var(--dream-accent), 0.5);
 }

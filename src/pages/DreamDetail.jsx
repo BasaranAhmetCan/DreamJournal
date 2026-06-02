@@ -27,9 +27,15 @@ const DreamDetail = () => {
     setIsGenerating(true);
     try {
       const prompt = dream.imagePrompt || dream.text;
-      const seed = Math.floor(Math.random() * 1000000);
-      const encodedPrompt = encodeURIComponent(prompt);
-      const finalUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${seed}`;
+      const response = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: prompt })
+      });
+      if (!response.ok) throw new Error('API Hatası');
+      
+      const data = await response.json();
+      const finalUrl = data.image_url;
       
       // Resmin yüklenmesini bekleyelim
       const img = new Image();
@@ -158,7 +164,7 @@ const DreamDetail = () => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex-shrink-0 px-4 py-2 rounded-full text-xs transition-all duration-300 ${
                   activeTab === tab.id 
-                  ? 'bg-dream-accent text-white shadow-[0_0_15px_rgba(139,92,246,0.3)]' 
+                  ? 'bg-dream-accent text-pure-white shadow-[0_0_15px_rgba(139,92,246,0.3)]' 
                   : 'bg-white/5 text-white/50 hover:bg-white/10 border border-white/5'
                 }`}
               >
