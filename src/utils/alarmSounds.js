@@ -330,9 +330,21 @@ export const previewAlarmSound = (soundId = 'gentle') => {
 export const stopAlarmSound = () => {
   isPlaying = false;
   currentOscillators.forEach(osc => {
-    try { osc.stop(); } catch (e) { /* zaten durmuş olabilir */ }
+    try { 
+      osc.stop(); 
+      osc.disconnect(); 
+    } catch (e) { /* zaten durmuş olabilir */ }
   });
   currentOscillators = [];
+  
+  // Sesi ANINDA ve kesin olarak kesmek için AudioContext'i kapatıyoruz.
+  // Bir sonraki alarmda getAudioContext() yenisini oluşturacaktır.
+  if (audioContext && audioContext.state !== 'closed') {
+    try {
+      audioContext.close();
+    } catch(e) {}
+    audioContext = null;
+  }
 };
 
 export const isAlarmPlaying = () => isPlaying;
