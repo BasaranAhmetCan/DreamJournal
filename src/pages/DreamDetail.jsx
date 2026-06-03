@@ -39,15 +39,18 @@ const DreamDetail = () => {
       const finalUrl = data.image_url;
       
       // Resmin yüklenmesini bekleyelim
-      const img = new Image();
-      img.onload = () => {
-        setImageForDream(dream.id, finalUrl);
-        setIsGenerating(false);
-      };
-      img.onerror = () => {
-        throw new Error('Resim yüklenemedi');
-      };
-      img.src = finalUrl;
+      await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          setImageForDream(dream.id, finalUrl);
+          resolve();
+        };
+        img.onerror = () => {
+          reject(new Error('Resim yüklenemedi'));
+        };
+        img.src = finalUrl;
+      });
+      setIsGenerating(false);
     } catch (error) {
       console.error('Görsel oluşturulamadı:', error);
       setImageForDream(dream.id, "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1200&auto=format&fit=crop");
