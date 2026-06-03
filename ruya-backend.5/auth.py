@@ -25,7 +25,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
     """
     token = credentials.credentials
     try:
-        decoded_token = auth.verify_id_token(token)
+        decoded_token = auth.verify_id_token(token, clock_skew_seconds=60)
         return decoded_token
     except Exception as e:
         print(f"AUTH ERROR: {e}")

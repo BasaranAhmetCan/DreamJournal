@@ -26,8 +26,9 @@ const DreamDetail = () => {
   const handleGenerateImage = async () => {
     setIsGenerating(true);
     try {
+      const API_URL = import.meta.env.PROD ? (import.meta.env.VITE_API_URL || '') : '';
       const prompt = dream.imagePrompt || dream.text;
-      const response = await fetch('/api/generate-image', {
+      const response = await fetch(`${API_URL}/api/generate-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: prompt })

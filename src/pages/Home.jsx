@@ -216,16 +216,20 @@ const Home = () => {
     setIsAnalyzing(true);
     
     try {
-      let token = "";
-      if (firebaseUser) {
-        token = await firebaseUser.getIdToken(true); // Token'i zorla yenile (expire sorununu önler)
+      if (!firebaseUser) {
+        alert("Oturumunuzun süresi dolmuş veya geçersiz. Lütfen sayfayı yenileyip baştan giriş yapın.");
+        localStorage.removeItem('dreamJournalUser');
+        window.location.reload();
+        return;
       }
+      const token = await firebaseUser.getIdToken(true);
 
-      const response = await fetch('/api/analyze-dream', {
+      const API_URL = import.meta.env.PROD ? (import.meta.env.VITE_API_URL || '') : '';
+      const response = await fetch(`${API_URL}/api/analyze-dream`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ 
           text: dreamText,
@@ -234,6 +238,9 @@ const Home = () => {
       });
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Backend'den gelen hata detayı:", errorText);
+        alert(`Sunucu Hatası (${response.status}): ${errorText}`);
         throw new Error('API Hatası');
       }
       
@@ -258,8 +265,8 @@ const Home = () => {
       
       navigate(`/dream/${newDreamId}`);
     } catch (error) {
-      console.error("Analiz motoru hatası:", error);
-      alert("Rüyanız analiz edilirken bir hata oluştu (Sunucu kapalı veya API limiti aşılmış olabilir). Lütfen tekrar deneyin.");
+      console.error('Analiz hatası:', error);
+      alert('Hata detayı: ' + error.message);
     } finally {
       setIsAnalyzing(false);
     }
@@ -272,36 +279,39 @@ const Home = () => {
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md flex justify-between items-center pt-6 pb-4"
+        className="w-full max-w-md flex flex-col items-center gap-3 pt-6 pb-2 relative"
       >
-        <h1 className="text-xl font-light text-white/50 tracking-[0.3em] uppercase">
-          Rüya Günlüğü
-        </h1>
-        <div className="flex items-center gap-2">
-          {userProfile && (
-            <div className="flex items-center gap-2 bg-white/5 pl-4 pr-2 py-2 rounded-full border border-white/10 group">
-              <User size={14} className="text-dream-accent" />
-              <span className="text-xs font-medium text-white/80">{userProfile.name}</span>
-              <span className="text-[10px] text-white/40 uppercase tracking-widest px-1 border-l border-white/20 ml-1 pl-2">
-                {userProfile.zodiac}
-              </span>
-              <button 
-                onClick={handleLogout}
-                className="ml-2 p-1.5 rounded-full hover:bg-red-500/20 hover:text-red-400 text-white/40 transition-colors"
-                title="Çıkış Yap"
-              >
-                <LogOut size={12} />
-              </button>
-            </div>
-          )}
+        <div className="flex justify-center items-center w-full">
+          <h1 className="text-xl font-light text-white/50 tracking-[0.3em] uppercase">
+            Rüya Günlüğü
+          </h1>
           <button 
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 transition-all duration-300 animate-pulse-slow"
+            className="absolute right-2 p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 transition-all duration-300 animate-pulse-slow"
             title="Ayarlar"
           >
             <Settings size={16} />
           </button>
         </div>
+        
+        {userProfile && (
+          <div className="flex items-center gap-2 bg-white/5 pl-4 pr-2 py-2.5 rounded-full border border-white/10 group max-w-[90%]">
+            <User size={14} className="text-dream-accent flex-shrink-0" />
+            <span className="text-sm font-medium text-white/80 whitespace-normal break-words text-center" style={{ wordBreak: 'break-word' }}>
+              {userProfile.name}
+            </span>
+            <span className="text-xs text-white/50 tracking-widest px-2 border-l border-white/20 ml-1 flex-shrink-0">
+              {userProfile.zodiac ? userProfile.zodiac.toLocaleUpperCase('tr-TR') : ''}
+            </span>
+            <button 
+              onClick={handleLogout}
+              className="ml-1 p-1.5 rounded-full hover:bg-red-500/20 hover:text-red-400 text-white/40 transition-colors flex-shrink-0"
+              title="Çıkış Yap"
+            >
+              <LogOut size={12} />
+            </button>
+          </div>
+        )}
       </motion.div>
 
       <motion.div 
