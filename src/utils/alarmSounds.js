@@ -20,7 +20,7 @@ const getAudioContext = () => {
 // ============================================
 
 export const ALARM_SOUNDS = [
-  { id: 'gentle', name: 'Huzurlu Uyanış', emoji: '🌅', description: 'Yumuşak ve sakin' },
+  { id: 'gentle', name: 'Huzurlu', emoji: '🌅', description: 'Yumuşak ve sakin' },
   { id: 'classic', name: 'Klasik Alarm', emoji: '⏰', description: 'Geleneksel bip sesi' },
   { id: 'melody', name: 'Melodi', emoji: '🎵', description: 'Müzikal arpej' },
   { id: 'cosmic', name: 'Kozmik', emoji: '🌌', description: 'Uzay temalı' },

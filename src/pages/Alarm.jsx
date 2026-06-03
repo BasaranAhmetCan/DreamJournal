@@ -63,7 +63,7 @@ const SoundSelector = ({ selectedSound, onSelect, compact = false }) => {
                 >
                   <span className="text-lg">{sound.emoji}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{sound.name}</p>
+                    <p className="text-xs sm:text-sm font-medium truncate">{sound.name}</p>
                   </div>
                   <button
                     onClick={(e) => handlePreview(e, sound.id)}
@@ -87,7 +87,7 @@ const SoundSelector = ({ selectedSound, onSelect, compact = false }) => {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs uppercase tracking-widest text-white/40">Alarm Sesi</p>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-2 sm:gap-3">
         {ALARM_SOUNDS.map((sound) => (
           <motion.div
             key={sound.id}
@@ -95,22 +95,22 @@ const SoundSelector = ({ selectedSound, onSelect, compact = false }) => {
             onClick={() => handleSelect(sound.id)}
             role="button"
             tabIndex={0}
-            className={`relative flex items-center gap-3 p-3 rounded-2xl border transition-all duration-300 cursor-pointer ${
+            className={`relative flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-2xl border transition-all duration-300 cursor-pointer ${
               sound.id === selectedSound
                 ? 'bg-dream-accent/15 border-dream-accent/40 shadow-[0_0_15px_rgba(139,92,246,0.15)]'
                 : 'bg-white/[0.02] border-white/5 hover:border-white/10'
             }`}
           >
-            <span className="text-xl">{sound.emoji}</span>
+            <span className="text-lg sm:text-xl">{sound.emoji}</span>
             <div className="flex-1 text-left min-w-0">
-              <p className={`text-sm font-medium truncate ${sound.id === selectedSound ? 'text-dream-accent' : 'text-white/80'}`}>
+              <p className={`text-[13px] sm:text-sm font-medium truncate ${sound.id === selectedSound ? 'text-dream-accent' : 'text-white/80'}`}>
                 {sound.name}
               </p>
-              <p className="text-[10px] text-white/30 truncate">{sound.description}</p>
+              <p className="text-[9px] sm:text-[10px] text-white/30 truncate">{sound.description}</p>
             </div>
             <button
               onClick={(e) => handlePreview(e, sound.id)}
-              className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
                 previewingId === sound.id
                   ? 'bg-dream-accent text-white scale-110 shadow-[0_0_10px_rgba(139,92,246,0.5)]'
                   : 'bg-white/10 text-white/40 hover:bg-white/20 hover:text-white/60'
@@ -118,10 +118,10 @@ const SoundSelector = ({ selectedSound, onSelect, compact = false }) => {
             >
               {previewingId === sound.id ? (
                 <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.5, repeat: Infinity }}>
-                  <Volume2 size={14} />
+                  <Volume2 size={12} className="sm:w-[14px] sm:h-[14px] w-3 h-3" />
                 </motion.div>
               ) : (
-                <Play size={12} />
+                <Play size={10} className="sm:w-3 sm:h-3 w-2.5 h-2.5" />
               )}
             </button>
           </motion.div>
@@ -309,11 +309,11 @@ const Alarm = () => {
                   >
                     {alarm.active ? <Bell size={18} /> : <BellOff size={18} />}
                   </button>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col min-w-0 flex-1">
                     <span className={`text-3xl font-light ${alarm.active ? 'text-white' : 'text-white/50'}`}>
                       {formatAlarmTime(alarm.time, timeFormat)}
                     </span>
-                    <span className="text-[10px] text-white/30 mt-0.5">
+                    <span className="text-[10px] sm:text-xs text-white/30 mt-0.5 truncate pr-2">
                       {(ALARM_SOUNDS.find(s => s.id === alarm.sound) || ALARM_SOUNDS[0]).emoji}{' '}
                       {(ALARM_SOUNDS.find(s => s.id === alarm.sound) || ALARM_SOUNDS[0]).name}
                     </span>

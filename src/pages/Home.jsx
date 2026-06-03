@@ -273,7 +273,10 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center bg-gradient-to-b from-dream-dark via-dream-mid to-dream-light text-white p-6 pb-32">
+    <div 
+      className="min-h-screen w-full flex flex-col items-center bg-gradient-to-b from-dream-dark via-dream-mid to-dream-light text-white p-6"
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8rem)' }}
+    >
       
       {/* Profil Header */}
       <motion.div 
@@ -281,13 +284,13 @@ const Home = () => {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md flex flex-col items-center gap-3 pt-6 pb-2 relative"
       >
-        <div className="flex justify-center items-center w-full">
-          <h1 className="text-xl font-light text-white/50 tracking-[0.3em] uppercase">
+        <div className="flex justify-center items-center w-full relative h-10 px-12">
+          <h1 className="text-base font-light text-white/50 tracking-[0.2em] uppercase text-center">
             Rüya Günlüğü
           </h1>
           <button 
             onClick={() => setIsSettingsOpen(true)}
-            className="absolute right-2 p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 transition-all duration-300 animate-pulse-slow"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 transition-all duration-300 animate-pulse-slow"
             title="Ayarlar"
           >
             <Settings size={16} />
